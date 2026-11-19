@@ -1,0 +1,20 @@
+{
+  "name": "HISHAM WORLD",
+  "short_name": "Hisham World",
+  "description": "A local-first arcade and community world for Hisham.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090a0e",
+  "theme_color": "#090a0e",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "scope": "./"
+}

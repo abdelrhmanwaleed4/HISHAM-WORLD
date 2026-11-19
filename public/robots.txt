@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://abdelrhmanwaleed4.github.io/hisham-world/sitemap.xml

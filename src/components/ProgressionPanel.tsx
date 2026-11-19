@@ -1,0 +1,38 @@
+import { useRef } from 'react'
+import { Download, RefreshCcw, Share2, Sparkles, Trophy, Upload, Zap } from 'lucide-react'
+import type { Language } from '../types'
+import { dailyChallenges, levelForXp, parseProgressExport, persistProgress, rankForLevel, serializeProgress, type AchievementId, type ProgressState, todayKey, xpForLevel } from '../lib/progression'
+
+type Props = { language: Language; state: ProgressState; onImport: (state: ProgressState) => void; onReset: () => void }
+const labels: Record<AchievementId, [string, string]> = {
+  'first-score': ['أول إشارة', 'First Signal'], 'arcade-rookie': ['مبتدئ الأركيد', 'Arcade Rookie'], 'all-rounder': ['لاعب شامل', 'All-Rounder'], 'xp-1000': ['ألف XP', '1K XP'], 'click-master': ['سيد السرعة', 'Click Master'], 'snake-charmer': ['صائد الزمرد', 'Snake Charmer'], 'memory-mind': ['ذاكرة حديد', 'Memory Mind'], 'reflex-ready': ['رد فعل جاهز', 'Reflex Ready'], 'daily-player': ['حاضر يوميًا', 'Daily Player'],
+}
+const descriptions: Record<AchievementId, [string, string]> = {
+  'first-score': ['سجّل أول نتيجة', 'Record your first score'], 'arcade-rookie': ['العب 3 جولات', 'Play 3 rounds'], 'all-rounder': ['جرّب الألعاب الخمس', 'Try all five games'], 'xp-1000': ['اجمع 1000 XP', 'Earn 1,000 XP'], 'click-master': ['سجّل 100 في Click Rush', 'Score 100 in Click Rush'], 'snake-charmer': ['سجّل 50 في Snake', 'Score 50 in Snake'], 'memory-mind': ['سجّل 700 في Memory', 'Score 700 in Memory'], 'reflex-ready': ['سجّل 500 في Reflex', 'Score 500 in Reflex'], 'daily-player': ['أكمل تحديي اليوم', 'Complete both daily challenges'],
+}
+const copy = (language: Language, value: [string, string]) => value[language === 'ar' ? 0 : 1]
+const challengeLabel = (language: Language, id: string, fallback: string) => language === 'ar' ? ({ 'daily-arcade': 'العب جولتين من الأركيد', 'daily-xp': 'اكسب 100 XP من الأركيد', 'daily-score': 'اجمع نقاطًا كافية اليوم' }[id] ?? fallback) : fallback
+
+const downloadCard = (state: ProgressState, language: Language) => {
+  const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 630
+  const context = canvas.getContext('2d'); if (!context) return
+  const gradient = context.createLinearGradient(0, 0, 1200, 630); gradient.addColorStop(0, '#08090d'); gradient.addColorStop(1, '#362019')
+  context.fillStyle = gradient; context.fillRect(0, 0, 1200, 630); context.strokeStyle = '#ff922e'; context.lineWidth = 4; context.strokeRect(36, 36, 1128, 558)
+  context.fillStyle = '#a9adba'; context.font = '700 30px Arial'; context.fillText('HISHAM WORLD · PROGRESSION', 78, 120)
+  context.fillStyle = '#f4f5f8'; context.font = '800 68px Arial'; context.fillText(rankForLevel(levelForXp(state.totalXp)), 78, 230)
+  context.fillStyle = '#ff922e'; context.font = '800 94px Arial'; context.fillText(`${state.totalXp} XP`, 78, 370)
+  context.fillStyle = '#a9adba'; context.font = '500 28px Arial'; context.fillText(`${state.achievements.length}/9 achievements · ${language === 'ar' ? 'محلي على هذا الجهاز فقط' : 'local on this device only'}`, 78, 490)
+  const link = document.createElement('a'); link.download = 'hisham-world-progression.png'; link.href = canvas.toDataURL('image/png'); link.click()
+}
+
+export default function ProgressionPanel({ language, state, onImport, onReset }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const level = levelForXp(state.totalXp); const currentFloor = xpForLevel(level); const nextFloor = xpForLevel(level + 1); const progress = Math.min(100, Math.round(((state.totalXp - currentFloor) / Math.max(1, nextFloor - currentFloor)) * 100)); const challenges = dailyChallenges(state.daily.date)
+  const importFile = async (file: File) => { if (file.size > 1_000_000) return; const parsed = await file.text(); const imported = parseProgressExport(parsed); if (imported) { const normalized = imported.daily.date === todayKey() ? imported : { ...imported, daily: { date: todayKey(), gamesPlayed: 0, xpEarned: 0, score: 0, claimed: [] } }; persistProgress(normalized); onImport(normalized) } }
+  const en = language === 'en'
+  return <div className="progression-layout">
+    <div className="progression-main glass"><div className="progression-top"><div><span className="eyebrow"><Sparkles size={14} /> {en ? 'LOCAL PROGRESSION' : 'تقدم محلي'}</span><h3>{rankForLevel(level)}</h3><p>{en ? `Level ${level} · ${state.totalXp} XP total` : `المستوى ${level} · إجمالي ${state.totalXp} XP`}</p></div><div className="level-orb"><strong>{level}</strong><span>{en ? 'LEVEL' : 'مستوى'}</span></div></div><div className="progression-track" role="progressbar" aria-label={en ? 'Level progress' : 'تقدم المستوى'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div><div className="progression-meta"><span>{state.totalXp - currentFloor} / {nextFloor - currentFloor} XP</span><span>{state.gamesPlayed} {en ? 'rounds played' : 'جولة لعب'}</span></div><div className="progression-actions"><button className="button button-primary" onClick={() => downloadCard(state, language)}><Share2 size={15} />{en ? 'Share progress card' : 'مشاركة بطاقة التقدم'}</button><button className="button button-ghost" onClick={() => { const blob = new Blob([serializeProgress(state)], { type: 'application/json' }); const link = document.createElement('a'); link.download = 'hisham-world-progress.json'; link.href = URL.createObjectURL(blob); link.click(); window.setTimeout(() => URL.revokeObjectURL(link.href), 1000) }}><Download size={15} />{en ? 'Export' : 'تصدير'}</button><button className="button button-ghost" onClick={() => inputRef.current?.click()}><Upload size={15} />{en ? 'Import' : 'استيراد'}</button><input ref={inputRef} type="file" accept="application/json,.json" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); event.currentTarget.value = '' }} /></div><p className="progression-local"><Zap size={14} />{en ? 'Browser/device-local. No account or global leaderboard.' : 'محفوظ على المتصفح والجهاز فقط. بدون حساب أو ليدربورد عالمي.'}</p></div>
+    <div className="daily-card glass"><div className="progression-heading"><div><span className="eyebrow">{en ? 'TODAY' : 'اليوم'}</span><h3>{en ? 'Daily challenges' : 'تحديات اليوم'}</h3></div><span className="daily-date">{state.daily.date}</span></div>{challenges.map((challenge) => { const claimed = state.daily.claimed.includes(challenge.id); const value = challenge.kind === 'games' ? state.daily.gamesPlayed : challenge.kind === 'xp' ? state.daily.xpEarned : state.daily.score; return <div className={`challenge-row ${claimed ? 'complete' : ''}`} key={challenge.id}><span className="challenge-icon">{claimed ? '✓' : '○'}</span><span><b>{challengeLabel(language, challenge.id, challenge.label)}</b><small>{value}/{challenge.target}</small></span></div> })}</div>
+    <div className="achievement-panel glass"><div className="progression-heading"><div><span className="eyebrow"><Trophy size={14} /> {en ? 'UNLOCKS' : 'الإنجازات'}</span><h3>{state.achievements.length}/9</h3></div><span className="muted">{en ? 'Achievements' : 'إنجازات'}</span></div><div className="achievement-grid">{(Object.keys(labels) as AchievementId[]).map((id) => { const unlocked = state.achievements.includes(id); return <div className={`achievement-tile ${unlocked ? 'unlocked' : ''}`} key={id}><Trophy size={19} /><b>{copy(language, labels[id])}</b><small>{copy(language, descriptions[id])}</small></div> })}</div><button className="button button-danger" onClick={onReset}><RefreshCcw size={15} />{en ? 'Reset progress' : 'إعادة ضبط التقدم'}</button></div>
+  </div>
+}
